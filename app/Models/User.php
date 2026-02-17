@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
@@ -27,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         'username',
         'image',
         'bio',
+        'weekly_recommendation_emails',
         'email',
         'password',
     ];
@@ -51,6 +53,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'weekly_recommendation_emails' => 'boolean',
         ];
     }
 
@@ -92,6 +95,11 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
     public function favoriteGames()
     {
         return $this->belongsToMany(Game::class, 'game_favorites')->withTimestamps();
+    }
+
+    public function favoritePosts(): BelongsToMany
+    {
+        return $this->belongsToMany(Post::class, 'post_favorites')->withTimestamps();
     }
 
     public function following()
