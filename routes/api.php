@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\GameController;
+use App\Http\Controllers\Api\GenreController;
+use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +17,8 @@ Route::get('games', [GameController::class, 'index']);
 Route::get('games/genre/{genre}', [GameController::class, 'byGenre']);
 Route::get('games/platform/{platform}', [GameController::class, 'byPlatform']);
 Route::get('games/{game}', [GameController::class, 'show']);
+Route::get('genres', [GenreController::class, 'index']);
+Route::get('platforms', [PlatformController::class, 'index']);
 
 Route::get('reviews', [ReviewController::class, 'index']);
 Route::get('reviews/{review}', [ReviewController::class, 'show']);
