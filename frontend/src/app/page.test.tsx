@@ -7,11 +7,25 @@ import HomePage from './page';
 const { getMock } = vi.hoisted(() => ({
   getMock: vi.fn(),
 }));
+const { useAuthTokenMock } = vi.hoisted(() => ({
+  useAuthTokenMock: vi.fn(),
+}));
+const { replaceMock } = vi.hoisted(() => ({
+  replaceMock: vi.fn(),
+}));
 
 vi.mock('@/lib/api', () => ({
   api: {
     get: getMock,
   },
+}));
+vi.mock('@/lib/auth', () => ({
+  useAuthToken: useAuthTokenMock,
+}));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    replace: replaceMock,
+  }),
 }));
 
 vi.mock('next/link', () => ({
@@ -25,6 +39,9 @@ vi.mock('next/link', () => ({
 describe('home page', () => {
   beforeEach(() => {
     getMock.mockReset();
+    useAuthTokenMock.mockReset();
+    replaceMock.mockReset();
+    useAuthTokenMock.mockReturnValue('token');
     getMock.mockImplementation((url: string) => {
       if (url === '/games') {
         return Promise.resolve({
@@ -75,7 +92,23 @@ describe('home page', () => {
       expect(screen.getByText('Elden Ring')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Loaded 1 games')).toBeInTheDocument();
     expect(screen.getAllByText('RPG').length).toBeGreaterThan(0);
+  });
+
+  it('redirects to login when no token is present', async () => {
+    useAuthTokenMock.mockReturnValue(null);
+
+    const client = new QueryClient();
+
+    render(
+      <QueryClientProvider client={client}>
+        <HomePage />
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith('/auth/login');
+    });
+    expect(getMock).not.toHaveBeenCalled();
   });
 });

@@ -1,16 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { use, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { AuthUser, Game, Review } from '@/lib/types';
+import type { AuthUser, Game, Paginated, Review } from '@/lib/types';
 import { tokenStore } from '@/lib/auth';
 import Link from 'next/link';
 
-type PageProps = { params: { id: string } };
+type PageProps = { params: Promise<{ id: string }> };
 
 export default function GameDetailPage({ params }: PageProps) {
-  const gameId = Number(params.id);
+  const { id } = use(params);
+  const gameId = Number(id);
   const queryClient = useQueryClient();
   const token = tokenStore.get();
 
@@ -33,7 +34,7 @@ export default function GameDetailPage({ params }: PageProps) {
 
   const favoritesQuery = useQuery({
     queryKey: ['favorites'],
-    queryFn: async () => (await api.get<{ data: Game[] }>('/favorites')).data,
+    queryFn: async () => (await api.get<Paginated<Game>>('/favorites')).data,
     enabled: Boolean(token),
   });
 
@@ -74,10 +75,10 @@ export default function GameDetailPage({ params }: PageProps) {
     mutationFn: async () => {
       const isFavorited = favoritesQuery.data?.data?.some((g) => g.id === gameId);
       if (isFavorited) {
-        await api.delete(`/favorites/${gameId}`);
+        await api.delete(`/favorites/games/${gameId}`);
         return false;
       }
-      await api.post(`/favorites/${gameId}`);
+      await api.post(`/favorites/games/${gameId}`);
       return true;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['favorites'] }),
@@ -246,3 +247,4 @@ export default function GameDetailPage({ params }: PageProps) {
     </div>
   );
 }
+

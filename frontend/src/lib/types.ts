@@ -62,4 +62,53 @@ export type AuthUser = {
   name: string;
   username: string;
   email: string;
+  bio?: string | null;
+  image?: string | null;
+  followers_count?: number;
+  following_count?: number;
+};
+
+export type SearchUser = {
+  id: number;
+  name: string;
+  username: string;
+};
+
+export type PublicUserProfile = {
+  id: number;
+  name: string;
+  username: string;
+  bio?: string | null;
+  image?: string | null;
+  followers_count: number;
+  following_count: number;
+  is_following?: boolean;
+  posts: UserPost[];
+};
+
+export type PostCategory = {
+  id: number;
+  name: string;
+};
+
+export type UserPost = {
+  id: number;
+  title: string;
+  slug: string;
+  content: string;
+  image_url: string | null;
+  published_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  category: PostCategory | null;
+  user: { id: number; name: string; username: string; image?: string | null } | null;
+  is_favorited?: boolean;
+  is_liked?: boolean;
+  likes_count?: number;
+  comments?: {
+    id: number;
+    content: string;
+    created_at: string | null;
+    user: { id: number; name: string; username: string } | null;
+  }[];
 };
