@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { isAxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { useAuthToken } from '@/lib/auth';
+import { tokenStore, useAuthToken } from '@/lib/auth';
 import type { AuthUser } from '@/lib/types';
 
 export default function SettingsPage() {
@@ -22,6 +23,9 @@ export default function SettingsPage() {
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -80,6 +84,30 @@ export default function SettingsPage() {
     onError: () => {
       setMessage('');
       setError('Could not update profile.');
+    },
+  });
+
+  const deleteAccount = useMutation({
+    mutationFn: async () => {
+      await api.delete('/auth/account', {
+        data: {
+          password: deletePassword,
+        },
+      });
+    },
+    onSuccess: () => {
+      tokenStore.clear();
+      queryClient.clear();
+      router.replace('/auth/login?deleted=1');
+    },
+    onError: (err: unknown) => {
+      if (isAxiosError(err)) {
+        const validationErrors = err.response?.data?.errors as Record<string, string[]> | undefined;
+        const firstValidationMessage = validationErrors ? Object.values(validationErrors).flat()[0] : null;
+        setDeleteError(firstValidationMessage || err.response?.data?.message || 'Could not delete account.');
+        return;
+      }
+      setDeleteError('Could not delete account.');
     },
   });
 
@@ -232,6 +260,60 @@ export default function SettingsPage() {
                 >
                   {saveProfile.isPending ? 'Saving...' : 'Save Changes'}
                 </button>
+              </div>
+
+              <div className="rounded-xl border border-red-500/30 bg-red-900/10 p-4">
+                <p className="text-sm font-semibold text-red-300">Danger Zone</p>
+                <p className="mt-1 text-sm text-red-200/90">Delete your account permanently. This action cannot be undone.</p>
+
+                {!showDeleteConfirm ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteError('');
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="mt-4 inline-flex items-center rounded-lg border border-red-400/70 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/20"
+                  >
+                    Delete Account
+                  </button>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    <label className="block text-sm font-medium text-red-100">Confirm password to delete account</label>
+                    <input
+                      type="password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="block w-full rounded-lg border border-red-300/40 bg-slate-900/50 px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                    {deleteError && <p className="text-sm text-red-300">{deleteError}</p>}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeletePassword('');
+                          setDeleteError('');
+                          setShowDeleteConfirm(false);
+                        }}
+                        className="rounded-lg border border-slate-500 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700/30"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deleteAccount.isPending || deletePassword.length === 0}
+                        onClick={() => {
+                          setDeleteError('');
+                          deleteAccount.mutate();
+                        }}
+                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-400"
+                      >
+                        {deleteAccount.isPending ? 'Deleting...' : 'Confirm Delete'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </form>
           </div>

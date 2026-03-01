@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -30,11 +33,10 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        $token = $user->createToken('api')->plainTextToken;
+        event(new Registered($user));
 
         return response()->json([
-            'token' => $token,
-            'user' => $user,
+            'message' => 'Registration successful. Please verify your email before logging in.',
         ], 201);
     }
 
@@ -45,11 +47,20 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (!Auth::attempt($credentials)) {
+        $user = User::query()->where('email', $credentials['email'])->first();
+
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $user = $request->user();
+        if (!$user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+
+            return response()->json([
+                'message' => 'Please verify your email before logging in. A new verification link has been sent.',
+            ], 403);
+        }
+
         $token = $user->createToken('api')->plainTextToken;
 
         return response()->json([
@@ -58,11 +69,63 @@ class AuthController extends Controller
         ]);
     }
 
+    public function verifyEmail(int $id, string $hash): RedirectResponse
+    {
+        $nextAppUrl = rtrim((string) env('NEXT_APP_URL', 'http://localhost:3000'), '/');
+        $user = User::query()->findOrFail($id);
+
+        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            return redirect()->away($nextAppUrl.'/auth/login?verification=invalid');
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return redirect()->away($nextAppUrl.'/auth/login?verified=1');
+        }
+
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
+        }
+
+        return redirect()->away($nextAppUrl.'/auth/login?verified=1');
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out']);
+    }
+
+    public function destroyAccount(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+        ]);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        if (!Hash::check($validated['password'], $user->password)) {
+            return response()->json([
+                'message' => 'The provided password is incorrect.',
+                'errors' => [
+                    'password' => ['The provided password is incorrect.'],
+                ],
+            ], 422);
+        }
+
+        DB::transaction(function () use ($user): void {
+            $user->tokens()->delete();
+
+            if (!empty($user->image)) {
+                Storage::disk('public')->delete($user->image);
+            }
+
+            $user->clearMediaCollection('avatar');
+            $user->delete();
+        });
+
+        return response()->json(['message' => 'Account deleted successfully.']);
     }
 
     public function me(Request $request): JsonResponse

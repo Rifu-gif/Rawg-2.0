@@ -1,17 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { isAxiosError } from 'axios';
 import { api } from '@/lib/api';
 import { tokenStore, useAuthToken } from '@/lib/auth';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const token = useAuthToken();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [rememberEmail, setRememberEmail] = useState(false);
 
   useEffect(() => {
@@ -21,16 +24,48 @@ export default function LoginPage() {
   }, [token, router]);
 
   useEffect(() => {
+    const queryEmail = searchParams.get('email');
+    const isRegistered = searchParams.get('registered');
+    const isVerified = searchParams.get('verified');
+    const verificationError = searchParams.get('verification');
+    const isDeleted = searchParams.get('deleted');
+
+    if (queryEmail) {
+      setEmail(queryEmail);
+    }
+
+    if (isRegistered === '1') {
+      setInfo('Account created. Please verify your email from Mailpit before logging in.');
+      return;
+    }
+
+    if (isVerified === '1') {
+      setInfo('Email verified successfully. You can now sign in.');
+      return;
+    }
+
+    if (isDeleted === '1') {
+      setInfo('Your account was deleted successfully.');
+      return;
+    }
+
+    if (verificationError === 'invalid') {
+      setError('This verification link is invalid or expired. Try logging in to get a new one.');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     const savedEmail = localStorage.getItem('remembered_email');
-    if (savedEmail) {
+    if (savedEmail && !searchParams.get('email')) {
       setEmail(savedEmail);
       setRememberEmail(true);
     }
-  }, []);
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setInfo('');
     try {
       const { data } = await api.post('/auth/login', { email, password });
       if (rememberEmail) {
@@ -40,7 +75,11 @@ export default function LoginPage() {
       }
       tokenStore.set(data.token);
       router.push('/');
-    } catch (_err) {
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        setError(err.response?.data?.message || 'Login failed. Check your credentials.');
+        return;
+      }
       setError('Login failed. Check your credentials.');
     }
   }
@@ -93,6 +132,7 @@ export default function LoginPage() {
             />
             Remember me (email)
           </label>
+          {info && <p className="text-sm text-emerald-400">{info}</p>}
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           <div>

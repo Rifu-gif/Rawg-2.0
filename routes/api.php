@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
+    Route::get('verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
 });
 
 Route::get('games', [GameController::class, 'index']);
@@ -121,8 +124,9 @@ Route::get('users/{username}', function (string $username) {
     ]);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
+    Route::delete('auth/account', [AuthController::class, 'destroyAccount']);
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::put('auth/profile', [AuthController::class, 'updateProfile']);
 

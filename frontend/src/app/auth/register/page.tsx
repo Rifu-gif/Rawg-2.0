@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { api } from '@/lib/api';
-import { tokenStore, useAuthToken } from '@/lib/auth';
+import { useAuthToken } from '@/lib/auth';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -16,6 +16,8 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -26,17 +28,22 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setSuccess('');
+    setIsSubmitting(true);
     try {
-      const { data } = await api.post('/auth/register', {
+      await api.post('/auth/register', {
         name,
         username,
         email,
         password,
         password_confirmation: passwordConfirmation,
       });
-      tokenStore.set(data.token);
-      router.push('/');
+      setSuccess('Account created. Check Mailpit for the verification email. Redirecting to sign in...');
+      setTimeout(() => {
+        router.push(`/auth/login?email=${encodeURIComponent(email)}&registered=1`);
+      }, 1500);
     } catch (err: unknown) {
+      setIsSubmitting(false);
       if (isAxiosError(err)) {
         const validationErrors = err.response?.data?.errors as Record<string, string[]> | undefined;
         const firstValidationMessage = validationErrors ? Object.values(validationErrors).flat()[0] : null;
@@ -77,6 +84,7 @@ export default function RegisterPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            disabled={isSubmitting}
             className="w-full rounded-xl border border-slate-600 bg-slate-950/50 px-3 py-2 text-white placeholder:text-slate-500"
           />
           <input
@@ -84,6 +92,7 @@ export default function RegisterPage() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
+            disabled={isSubmitting}
             className="w-full rounded-xl border border-slate-600 bg-slate-950/50 px-3 py-2 text-white placeholder:text-slate-500"
           />
           <input
@@ -92,6 +101,7 @@ export default function RegisterPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={isSubmitting}
             className="w-full rounded-xl border border-slate-600 bg-slate-950/50 px-3 py-2 text-white placeholder:text-slate-500"
           />
           <input
@@ -101,6 +111,7 @@ export default function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
             required
+            disabled={isSubmitting}
             className="w-full rounded-xl border border-slate-600 bg-slate-950/50 px-3 py-2 text-white placeholder:text-slate-500"
           />
           <input
@@ -110,13 +121,18 @@ export default function RegisterPage() {
             onChange={(e) => setPasswordConfirmation(e.target.value)}
             minLength={8}
             required
+            disabled={isSubmitting}
             className="w-full rounded-xl border border-slate-600 bg-slate-950/50 px-3 py-2 text-white placeholder:text-slate-500"
           />
+          {success && <p className="text-sm text-emerald-400">{success}</p>}
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           <div>
-            <button className="w-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white">
-              Register
+            <button
+              disabled={isSubmitting}
+              className="w-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-70"
+            >
+              {isSubmitting ? 'Registering...' : 'Register'}
             </button>
           </div>
         </form>
