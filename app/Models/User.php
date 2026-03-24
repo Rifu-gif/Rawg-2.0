@@ -28,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         'username',
         'image',
         'bio',
+        'weekly_recommendation_emails',
         'email',
         'password',
     ];
@@ -52,6 +53,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'weekly_recommendation_emails' => 'boolean',
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Models\Clap;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\GameRecommendationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -37,7 +38,10 @@ class PostController extends Controller
             );
         });
 
-        return response()->json($posts);
+        $payload = $posts->toArray();
+        $payload['recommendations'] = $this->buildRecommendations($viewer);
+
+        return response()->json($payload);
     }
 
     public function myPosts(Request $request): JsonResponse
@@ -61,6 +65,28 @@ class PostController extends Controller
         });
 
         return response()->json($posts);
+    }
+
+    public function show(Request $request, Post $post): JsonResponse
+    {
+        /** @var User|null $viewer */
+        $viewer = $request->user('sanctum');
+
+        $post->load(['category', 'user', 'media', 'comments.user']);
+        $post->loadCount('claps');
+
+        $isFavorited = $viewer
+            ? $viewer->favoritePosts()->where('posts.id', $post->id)->exists()
+            : false;
+
+        $isLiked = $viewer
+            ? Clap::query()
+                ->where('user_id', $viewer->id)
+                ->where('post_id', $post->id)
+                ->exists()
+            : false;
+
+        return response()->json($this->serializePost($post, $isFavorited, $isLiked));
     }
 
     public function store(Request $request): JsonResponse
@@ -250,4 +276,10 @@ class PostController extends Controller
             })->values()->all(),
         ];
     }
+
+    private function buildRecommendations(?User $viewer): array
+    {
+        return app(GameRecommendationService::class)->buildForUser($viewer);
+    }
+
 }

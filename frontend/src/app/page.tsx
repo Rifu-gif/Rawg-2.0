@@ -98,12 +98,12 @@ export default function HomePage() {
       <div className="mx-auto w-full max-w-6xl px-5">
         <section className="mb-6 rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 px-6 py-8 shadow-xl">
           <h1 className="text-5xl font-black tracking-tight text-white">Games Database</h1>
-          <p className="mt-2 text-xl text-slate-200">Explore thousands of games from the RAWG database</p>
+          <p className="mt-2 text-xl text-slate-200">Browse the games currently synced into your local library from RAWG</p>
         </section>
 
         <section className="mb-6 rounded-xl border border-slate-700 bg-slate-900 px-5 py-5 shadow-xl">
           <h2 className="text-4xl font-black tracking-tight text-white">Search and Filters</h2>
-          <p className="mt-1 text-base text-slate-300">Loaded {loadedGames} games</p>
+          <p className="mt-1 text-base text-slate-300">Library size: {loadedGames} synced games</p>
 
           <div className="mt-5 space-y-4">
             <div>

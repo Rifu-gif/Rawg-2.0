@@ -16,6 +16,18 @@ use Illuminate\Support\Facades\Route;
 
 $nextAppUrl = rtrim((string) env('NEXT_APP_URL', 'http://localhost:3000'), '/');
 
+Route::get('/email-preferences/unsubscribe/{user}', function (\App\Models\User $user, Request $request) use ($nextAppUrl) {
+    if (!$request->hasValidSignature()) {
+        abort(403);
+    }
+
+    $user->forceFill([
+        'weekly_recommendation_emails' => false,
+    ])->save();
+
+    return redirect()->away($nextAppUrl . '/auth/login?weekly_recommendations=unsubscribed');
+})->name('recommendations.unsubscribe');
+
 Route::get('/{any?}', function (Request $request, ?string $any = null) use ($nextAppUrl) {
     $path = trim((string) ($any ?? ''), '/');
     $target = $nextAppUrl . ($path !== '' ? '/' . $path : '');

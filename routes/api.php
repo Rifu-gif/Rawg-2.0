@@ -27,6 +27,7 @@ Route::get('genres', [GenreController::class, 'index']);
 Route::get('platforms', [PlatformController::class, 'index']);
 Route::get('post-categories', [CategoryController::class, 'index']);
 Route::get('posts', [PostController::class, 'index']);
+Route::get('posts/{post}', [PostController::class, 'show'])->whereNumber('post');
 
 Route::get('reviews', [ReviewController::class, 'index']);
 Route::get('reviews/{review}', [ReviewController::class, 'show']);

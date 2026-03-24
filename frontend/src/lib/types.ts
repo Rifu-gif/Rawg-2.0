@@ -64,6 +64,7 @@ export type AuthUser = {
   email: string;
   bio?: string | null;
   image?: string | null;
+  weekly_recommendation_emails?: boolean;
   followers_count?: number;
   following_count?: number;
 };
@@ -111,4 +112,32 @@ export type UserPost = {
     created_at: string | null;
     user: { id: number; name: string; username: string } | null;
   }[];
+};
+
+export type RecommendedGame = {
+  id: number;
+  name: string;
+  slug: string;
+  background_image: string | null;
+  rating: number | null;
+  reviews_count: number;
+  genres: Genre[];
+  platforms: Platform[];
+  recommendation_score: number;
+  recommendation_reasons: string[];
+  recommendation_explanation: string;
+};
+
+export type FeedRecommendations = {
+  strategies_used: string[];
+  insufficient_data: boolean;
+  summary: string;
+  games: {
+    favorites_based_similarity: RecommendedGame[];
+    review_based_similarity: RecommendedGame[];
+  };
+};
+
+export type PostsFeedResponse = Paginated<UserPost> & {
+  recommendations?: FeedRecommendations;
 };

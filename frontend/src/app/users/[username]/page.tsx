@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthToken } from '@/lib/auth';
@@ -15,7 +16,6 @@ export default function PublicUserPage({ params }: PageProps) {
   const queryClient = useQueryClient();
 
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
-  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
 
   const meQuery = useQuery({
     queryKey: ['me'],
@@ -52,25 +52,6 @@ export default function PublicUserPage({ params }: PageProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-profile', username] });
       queryClient.invalidateQueries({ queryKey: ['favorites', 'posts'] });
-    },
-  });
-
-  const addComment = useMutation({
-    mutationFn: async ({ postId, content }: { postId: number; content: string }) => {
-      await api.post(`/posts/${postId}/comments`, { content });
-    },
-    onSuccess: (_data, variables) => {
-      setCommentDrafts((prev) => ({ ...prev, [variables.postId]: '' }));
-      queryClient.invalidateQueries({ queryKey: ['user-profile', username] });
-    },
-  });
-
-  const deleteComment = useMutation({
-    mutationFn: async ({ postId, commentId }: { postId: number; commentId: number }) => {
-      await api.delete(`/posts/${postId}/comments/${commentId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-profile', username] });
     },
   });
 
@@ -151,6 +132,7 @@ export default function PublicUserPage({ params }: PageProps) {
 
         <section className="mt-6 rounded-3xl border border-slate-700 bg-slate-900/50 p-6">
           <h2 className="text-2xl font-bold text-white">Posts</h2>
+          <p className="mt-1 text-sm text-slate-300">Open a post to read full content and comments.</p>
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {user.posts.length === 0 && (
               <div className="rounded-2xl border border-dashed border-slate-600 p-6 text-slate-300">No posts yet.</div>
@@ -158,75 +140,37 @@ export default function PublicUserPage({ params }: PageProps) {
             {user.posts.map((post) => (
               <article key={post.id} className="relative rounded-xl border border-slate-700 bg-slate-800/70 p-2.5">
                 {isAuthenticated && (
-                  <button
-                    type="button"
-                    onClick={() => toggleFavoritePost.mutate({ postId: post.id, isFavorited: Boolean(post.is_favorited) })}
-                    className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-1 text-lg leading-none text-yellow-300 hover:bg-black/80"
-                  >
-                    {post.is_favorited ? '★' : '☆'}
-                  </button>
+                  <div className="absolute right-3 top-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleLikePost.mutate(post.id)}
+                      className="rounded-full border border-rose-300/40 bg-black/50 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-black/70"
+                    >
+                      {post.is_liked ? '♥' : '♡'} {post.likes_count ?? 0}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoritePost.mutate({ postId: post.id, isFavorited: Boolean(post.is_favorited) })}
+                      className="rounded-full bg-black/60 px-2 py-1 text-lg leading-none text-yellow-300 hover:bg-black/80"
+                    >
+                      {post.is_favorited ? '★' : '☆'}
+                    </button>
+                  </div>
                 )}
                 <p className="text-[11px] text-slate-400">{post.created_at ? new Date(post.created_at).toLocaleDateString() : 'No date'}</p>
-                <h3 className="mt-1 text-base font-semibold text-white">{post.title || 'Untitled post'}</h3>
+                <h3 className="mt-1 pr-24 text-base font-semibold text-white">
+                  <Link href={`/posts/${post.id}`} className="hover:text-cyan-300">
+                    {post.title || 'Untitled post'}
+                  </Link>
+                </h3>
                 {post.category?.name && (
                   <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-cyan-300">{post.category.name}</p>
                 )}
                 {post.image_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={post.image_url} alt={post.title} className="mt-2 h-40 w-full rounded-lg object-cover" />
-                )}
-                <p className="mt-2 text-xs text-slate-300">{post.content || 'No content provided.'}</p>
-
-                {isAuthenticated ? (
-                  <>
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleLikePost.mutate(post.id)}
-                        className="rounded-lg border border-slate-500 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-700"
-                      >
-                        {post.is_liked ? 'Unlike' : 'Like'} ({post.likes_count ?? 0})
-                      </button>
-                    </div>
-
-                    <div className="mt-2 space-y-2 rounded-lg border border-slate-700 bg-slate-900/50 p-2">
-                      <p className="text-xs font-semibold text-cyan-300">Comments</p>
-                      {(post.comments ?? []).map((comment) => {
-                        const canDeleteComment = comment.user?.id === currentUserId || post.user?.id === currentUserId;
-                        return (
-                          <div key={comment.id} className="rounded border border-slate-700 bg-slate-800/60 px-2 py-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs text-slate-300">
-                            {comment.user ? `${comment.user.name} (@${comment.user.username})` : 'User'}
-                          </p>
-                        </div>
-                            <p className="text-xs text-slate-200">{comment.content}</p>
-                          </div>
-                        );
-                      })}
-                      <form
-                        className="flex gap-2"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          const content = commentDrafts[post.id]?.trim();
-                          if (!content) return;
-                          addComment.mutate({ postId: post.id, content });
-                        }}
-                      >
-                        <input
-                          value={commentDrafts[post.id] ?? ''}
-                          onChange={(event) => setCommentDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
-                          placeholder="Write a comment..."
-                          className="flex-1 rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-1.5 text-xs text-white"
-                        />
-                        <button type="submit" className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white">
-                          Post
-                        </button>
-                      </form>
-                    </div>
-                  </>
-                ) : (
-                  <p className="mt-2 text-xs text-slate-400">Sign in to like and comment.</p>
+                  <Link href={`/posts/${post.id}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={post.image_url} alt={post.title} className="mt-2 h-44 w-full rounded-lg object-cover" />
+                  </Link>
                 )}
               </article>
             ))}

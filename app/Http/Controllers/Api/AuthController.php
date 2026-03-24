@@ -151,6 +151,7 @@ class AuthController extends Controller
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
             'bio' => ['nullable', 'string', 'max:1000'],
+            'weekly_recommendation_emails' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'max:2048'],
             'remove_image' => ['nullable', 'boolean'],
         ]);
@@ -177,6 +178,7 @@ class AuthController extends Controller
             'username' => $validated['username'],
             'email' => $validated['email'],
             'bio' => $validated['bio'] ?? null,
+            'weekly_recommendation_emails' => (bool) ($validated['weekly_recommendation_emails'] ?? $user->weekly_recommendation_emails),
             'image' => $imagePath,
         ]);
 
