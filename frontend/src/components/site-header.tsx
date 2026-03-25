@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import { api } from '@/lib/api';
 import { tokenStore, useAuthToken } from '@/lib/auth';
 import type { AuthUser, SearchUser } from '@/lib/types';
@@ -74,10 +73,6 @@ export default function SiteHeader() {
   async function handleLogout() {
     try {
       await api.post('/auth/logout');
-    } catch (error) {
-      if (!axios.isAxiosError(error) || (error.response?.status !== 401 && error.response?.status !== 419)) {
-        throw error;
-      }
     } finally {
       tokenStore.clear();
       setMenuOpen(false);

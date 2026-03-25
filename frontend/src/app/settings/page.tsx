@@ -18,7 +18,6 @@ export default function SettingsPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [bio, setBio] = useState('');
-  const [weeklyRecommendationEmails, setWeeklyRecommendationEmails] = useState(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [removeAvatar, setRemoveAvatar] = useState(false);
@@ -46,7 +45,6 @@ export default function SettingsPage() {
     setUsername(meQuery.data.username ?? '');
     setEmail(meQuery.data.email ?? '');
     setBio(meQuery.data.bio ?? '');
-    setWeeklyRecommendationEmails(meQuery.data.weekly_recommendation_emails ?? true);
     setImagePreview(resolveImageUrl(meQuery.data.image));
     setRemoveAvatar(false);
   }, [meQuery.data]);
@@ -58,7 +56,6 @@ export default function SettingsPage() {
       formData.append('username', username);
       formData.append('email', email);
       formData.append('bio', bio);
-      formData.append('weekly_recommendation_emails', weeklyRecommendationEmails ? '1' : '0');
       if (imageFile) {
         formData.append('image', imageFile);
       }
@@ -250,23 +247,6 @@ export default function SettingsPage() {
                   className="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-900/40 px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <p className="mt-1 text-sm text-slate-400">Tell others about yourself.</p>
-              </div>
-
-              <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-                <label className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={weeklyRecommendationEmails}
-                    onChange={(e) => setWeeklyRecommendationEmails(e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-slate-500 bg-slate-950 text-blue-500 focus:ring-blue-500"
-                  />
-                  <span>
-                    <span className="block text-sm font-medium text-slate-200">Weekly recommendation emails</span>
-                    <span className="mt-1 block text-sm text-slate-400">
-                      Receive a weekly email with game recommendations based on your favorites and high-rated reviews. You can unsubscribe anytime.
-                    </span>
-                  </span>
-                </label>
               </div>
 
               {message && <p className="text-sm font-medium text-green-600">Saved successfully.</p>}
