@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthToken } from '@/lib/auth';
-import type { PostsFeedResponse } from '@/lib/types';
+import type { AuthUser, PostsFeedResponse } from '@/lib/types';
 
 const FAVORITE_RECOMMENDATION_DISPLAY_LIMIT = 10;
 const REVIEW_RECOMMENDATION_DISPLAY_LIMIT = 6;
@@ -31,6 +31,11 @@ export default function PostsPage() {
     queryFn: async () => (await api.get<PostsFeedResponse>('/posts', { params: { page } })).data,
     enabled: isAuthenticated,
   });
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => (await api.get<AuthUser>('/auth/me')).data,
+    enabled: isAuthenticated,
+  });
 
   const toggleFavoritePost = useMutation({
     mutationFn: async ({ postId, isFavorited }: { postId: number; isFavorited: boolean }) => {
@@ -50,6 +55,28 @@ export default function PostsPage() {
       queryClient.invalidateQueries({ queryKey: ['posts', 'all'] });
       queryClient.invalidateQueries({ queryKey: ['favorites', 'posts'] });
       queryClient.invalidateQueries({ queryKey: ['posts', 'mine', 'profile'] });
+    },
+  });
+  const toggleWeeklyRecommendationEmails = useMutation({
+    mutationFn: async () => {
+      if (!meQuery.data) throw new Error('Profile not loaded');
+      const nextValue = !(meQuery.data.weekly_recommendation_emails ?? true);
+      const formData = new FormData();
+      formData.append('name', meQuery.data.name);
+      formData.append('username', meQuery.data.username);
+      formData.append('email', meQuery.data.email);
+      formData.append('bio', meQuery.data.bio ?? '');
+      formData.append('weekly_recommendation_emails', nextValue ? '1' : '0');
+      const { data } = await api.put<AuthUser>('/auth/profile', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return data;
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(['me'], user);
+      queryClient.invalidateQueries({ queryKey: ['me'] });
     },
   });
 
@@ -86,6 +113,23 @@ export default function PostsPage() {
         <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-lg">
           {recommendations && (
             <div className="mb-6 rounded-xl border border-cyan-500/30 bg-slate-900/70 p-4">
+              <div className="mb-4 rounded-xl border border-cyan-400/30 bg-cyan-500/5 p-4">
+                <p className="text-sm text-cyan-100">
+                  Want to stay on top of trending games based on your favorites and reviews? Subscribe and we&apos;ll send you a weekly recommendation email.
+                </p>
+                <button
+                  type="button"
+                  disabled={meQuery.isLoading || toggleWeeklyRecommendationEmails.isPending}
+                  onClick={() => toggleWeeklyRecommendationEmails.mutate()}
+                  className="mt-3 rounded-full border border-cyan-300/50 bg-cyan-500/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-cyan-100 transition hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {toggleWeeklyRecommendationEmails.isPending
+                    ? 'Updating...'
+                    : meQuery.data?.weekly_recommendation_emails ?? true
+                      ? 'Unsubscribe from weekly emails'
+                      : 'Subscribe to weekly emails'}
+                </button>
+              </div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-bold text-white">Recommended for You</h2>
                 <span className="rounded-full border border-cyan-400/50 bg-cyan-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-200">
