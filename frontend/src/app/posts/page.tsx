@@ -8,8 +8,7 @@ import { api } from '@/lib/api';
 import { useAuthToken } from '@/lib/auth';
 import type { AuthUser, PostsFeedResponse } from '@/lib/types';
 
-const FAVORITE_RECOMMENDATION_DISPLAY_LIMIT = 10;
-const REVIEW_RECOMMENDATION_DISPLAY_LIMIT = 6;
+const MERGED_RECOMMENDATION_DISPLAY_LIMIT = 10;
 
 export default function PostsPage() {
   const router = useRouter();
@@ -17,8 +16,7 @@ export default function PostsPage() {
   const token = useAuthToken();
   const isAuthenticated = Boolean(token);
   const [page, setPage] = useState(1);
-  const favoritesRecScrollerRef = useRef<HTMLDivElement | null>(null);
-  const reviewRecScrollerRef = useRef<HTMLDivElement | null>(null);
+  const mergedRecScrollerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -82,8 +80,7 @@ export default function PostsPage() {
 
   const totalPages = postsQuery.data?.last_page ?? 1;
   const recommendations = postsQuery.data?.recommendations;
-  const favoriteBasedGames = (recommendations?.games.favorites_based_similarity ?? []).slice(0, FAVORITE_RECOMMENDATION_DISPLAY_LIMIT);
-  const reviewBasedGames = (recommendations?.games.review_based_similarity ?? []).slice(0, REVIEW_RECOMMENDATION_DISPLAY_LIMIT);
+  const mergedGames = (recommendations?.games.merged_similarity ?? []).slice(0, MERGED_RECOMMENDATION_DISPLAY_LIMIT);
 
   function resolveImageUrl(image: string | null | undefined) {
     if (!image || image.trim() === '') return null;
@@ -111,6 +108,12 @@ export default function PostsPage() {
     <div className="min-h-screen bg-slate-950 px-4 py-8">
       <div className="mx-auto w-full max-w-7xl space-y-6">
         <section className="rounded-2xl border border-slate-700 bg-slate-900/80 p-6 shadow-lg">
+          {postsQuery.isError && (
+            <div className="mb-6 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-100">
+              We could not load the posts feed and recommendations right now. Please refresh and try again.
+            </div>
+          )}
+
           {recommendations && (
             <div className="mb-6 rounded-xl border border-cyan-500/30 bg-slate-900/70 p-4">
               <div className="mb-4 rounded-xl border border-cyan-400/30 bg-cyan-500/5 p-4">
@@ -119,7 +122,7 @@ export default function PostsPage() {
                 </p>
                 <button
                   type="button"
-                  disabled={meQuery.isLoading || toggleWeeklyRecommendationEmails.isPending}
+                  disabled={meQuery.isLoading || meQuery.isError || toggleWeeklyRecommendationEmails.isPending}
                   onClick={() => toggleWeeklyRecommendationEmails.mutate()}
                   className="mt-3 rounded-full border border-cyan-300/50 bg-cyan-500/15 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-cyan-100 transition hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -129,6 +132,16 @@ export default function PostsPage() {
                       ? 'Unsubscribe from weekly emails'
                       : 'Subscribe to weekly emails'}
                 </button>
+                {meQuery.isError && (
+                  <p className="mt-2 text-xs text-amber-200">
+                    We could not load your email preference right now. You can still manage it later from Settings.
+                  </p>
+                )}
+                {toggleWeeklyRecommendationEmails.isError && (
+                  <p className="mt-2 text-xs text-rose-200">
+                    Updating the weekly email preference failed. Please try again.
+                  </p>
+                )}
               </div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-bold text-white">Recommended for You</h2>
@@ -137,90 +150,63 @@ export default function PostsPage() {
                 </span>
               </div>
 
-              <div className="mt-4 space-y-4">
-                <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-3">
-                  <h3 className="text-sm font-semibold text-cyan-300">Favorites-Based Similarity</h3>
-                  <p className="mt-1 text-xs text-slate-400">Games that share genres or platforms with your favorite games.</p>
-                  {favoriteBasedGames.length === 0 && <p className="mt-2 text-xs text-slate-400">No favorites-based game recommendations available yet.</p>}
-                  {favoriteBasedGames.length > 0 && (
-                    <div
-                      ref={favoritesRecScrollerRef}
-                      className="mt-2 overflow-x-auto"
-                      onWheel={(event) => handleRecommendationWheel(event, favoritesRecScrollerRef)}
-                    >
-                      <div className="flex w-max gap-4">
-                        {favoriteBasedGames.map((game) => (
-                          <article key={`favorite-recommended-game-${game.id}`} className="w-72 shrink-0 overflow-hidden rounded-lg border border-slate-700 bg-slate-900/50">
+              <div className="mt-4 rounded-lg border border-cyan-500/25 bg-slate-800/60 p-3">
+                <h3 className="text-sm font-semibold text-cyan-200">Merged Recommendations</h3>
+                <p className="mt-1 text-xs text-slate-400">
+                  A deterministic combined list built from favorites-based and review-based matches.
+                </p>
+                {mergedGames.length === 0 && <p className="mt-2 text-xs text-slate-400">No recommendations available yet.</p>}
+                {mergedGames.length > 0 && (
+                  <div
+                    ref={mergedRecScrollerRef}
+                    className="mt-2 overflow-x-auto"
+                    onWheel={(event) => handleRecommendationWheel(event, mergedRecScrollerRef)}
+                  >
+                    <div className="flex w-max gap-4">
+                      {mergedGames.map((game) => {
+                        const hasDetailsPage = game.id > 0;
+
+                        return (
+                          <article key={`merged-recommended-game-${game.id}-${game.name}`} className="w-72 shrink-0 overflow-hidden rounded-lg border border-slate-700 bg-slate-900/50">
                             {game.background_image ? (
-                              <Link href={`/games/${game.id}`}>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                              hasDetailsPage ? (
+                                <Link href={`/games/${game.id}`}>
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={game.background_image} alt={game.name} className="h-44 w-full object-cover" />
+                                </Link>
+                              ) : (
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img src={game.background_image} alt={game.name} className="h-44 w-full object-cover" />
-                              </Link>
+                              )
                             ) : (
                               <div className="flex h-44 items-center justify-center bg-slate-800 text-slate-400">No image</div>
                             )}
                             <div className="p-3">
                               <div className="flex items-center justify-between gap-2">
                                 <p className="text-base font-semibold text-white">{game.name}</p>
-                                <Link href={`/games/${game.id}`} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">
-                                  View
-                                </Link>
+                                {hasDetailsPage ? (
+                                  <Link href={`/games/${game.id}`} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">
+                                    View
+                                  </Link>
+                                ) : (
+                                  <span className="text-xs font-semibold text-slate-400">Info</span>
+                                )}
                               </div>
                               <p className="text-xs text-slate-400">score {game.recommendation_score} | rating {game.rating ?? 'N/A'}</p>
                               <p className="mt-1 text-xs text-slate-300">
                                 Genres: {(game.genres ?? []).slice(0, 2).map((genre) => genre.name).join(', ') || 'N/A'}
                               </p>
                               <p className="mt-2 text-sm leading-6 text-cyan-200">{game.recommendation_explanation}</p>
+                              {(game.recommendation_reasons ?? []).length > 0 && (
+                                <p className="mt-2 text-xs text-slate-300">{game.recommendation_reasons.join(' ')}</p>
+                              )}
                             </div>
                           </article>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-
-                <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-3">
-                  <h3 className="text-sm font-semibold text-cyan-300">Review-Based Similarity</h3>
-                  <p className="mt-1 text-xs text-slate-400">Games prioritized by genres and platforms from your highest-rated reviews.</p>
-                  {reviewBasedGames.length === 0 && <p className="mt-2 text-xs text-slate-400">No review-based game recommendations available yet.</p>}
-                  {reviewBasedGames.length > 0 && (
-                    <div
-                      ref={reviewRecScrollerRef}
-                      className="mt-2 overflow-x-auto"
-                      onWheel={(event) => handleRecommendationWheel(event, reviewRecScrollerRef)}
-                    >
-                      <div className="flex w-max gap-4">
-                        {reviewBasedGames.map((game) => (
-                          <article key={`review-recommended-game-${game.id}`} className="w-72 shrink-0 overflow-hidden rounded-lg border border-slate-700 bg-slate-900/50">
-                            {game.background_image ? (
-                              <Link href={`/games/${game.id}`}>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={game.background_image} alt={game.name} className="h-44 w-full object-cover" />
-                              </Link>
-                            ) : (
-                              <div className="flex h-44 items-center justify-center bg-slate-800 text-slate-400">No image</div>
-                            )}
-                            <div className="p-3">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-base font-semibold text-white">{game.name}</p>
-                                <Link href={`/games/${game.id}`} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">
-                                  View
-                                </Link>
-                              </div>
-                              <p className="text-xs text-slate-400">
-                                score {game.recommendation_score} | rating {game.rating ?? 'N/A'}
-                              </p>
-                              <p className="mt-1 text-xs text-slate-300">
-                                Genres: {(game.genres ?? []).slice(0, 2).map((genre) => genre.name).join(', ') || 'N/A'}
-                              </p>
-                              <p className="mt-2 text-sm leading-6 text-cyan-200">{game.recommendation_explanation}</p>
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

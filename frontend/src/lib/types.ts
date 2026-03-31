@@ -135,6 +135,7 @@ export type FeedRecommendations = {
   games: {
     favorites_based_similarity: RecommendedGame[];
     review_based_similarity: RecommendedGame[];
+    merged_similarity: RecommendedGame[];
   };
 };
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Recommendations\BuildGameRecommendations;
 use App\Mail\WeeklyRecommendationsMail;
 use App\Models\User;
 use Illuminate\Foundation\Inspiring;
@@ -62,11 +63,11 @@ Artisan::command('recommendations:send-weekly {--user-id=} {--force}', function 
         return;
     }
 
-    $service = app(\App\Services\GameRecommendationService::class);
+    $action = app(BuildGameRecommendations::class);
     $sent = 0;
 
     foreach ($users as $user) {
-        $recommendations = $service->buildForUser($user);
+        $recommendations = $action->handle($user);
         $unsubscribeUrl = URL::temporarySignedRoute(
             'recommendations.unsubscribe',
             now()->addDays(30),

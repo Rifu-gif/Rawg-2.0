@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Recommendations\BuildGameRecommendations;
 use App\Http\Controllers\Controller;
 use App\Models\Clap;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Models\User;
-use App\Services\GameRecommendationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -279,7 +279,7 @@ class PostController extends Controller
 
     private function buildRecommendations(?User $viewer): array
     {
-        return app(GameRecommendationService::class)->buildForUser($viewer);
+        return app(BuildGameRecommendations::class)->handle($viewer);
     }
 
 }
